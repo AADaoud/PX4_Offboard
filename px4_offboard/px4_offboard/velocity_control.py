@@ -50,6 +50,10 @@ from geometry_msgs.msg import Twist, Vector3
 from math import pi
 from std_msgs.msg import Bool
 
+def get_message_name_version(msg_class):
+    if msg_class.MESSAGE_VERSION == 0:
+        return ""
+    return f"_v{msg_class.MESSAGE_VERSION}"
 
 class OffboardControl(Node):
 
@@ -57,15 +61,17 @@ class OffboardControl(Node):
         super().__init__('minimal_publisher')
         qos_profile = QoSProfile(
             reliability=QoSReliabilityPolicy.BEST_EFFORT,
-            durability=QoSDurabilityPolicy.TRANSIENT_LOCAL,
+            durability=QoSDurabilityPolicy.VOLATILE,
             history=QoSHistoryPolicy.KEEP_LAST,
             depth=1
         )
-
+        
+        vehicle_attitude_topic = f"/fmu/out/vehicle_attitude{get_message_name_version(VehicleAttitude)}"
+        
         #Create subscriptions
         self.status_sub = self.create_subscription(
             VehicleStatus,
-            '/fmu/out/vehicle_status',
+            '/fmu/out/vehicle_status_v1',
             self.vehicle_status_callback,
             qos_profile)
         
@@ -77,7 +83,7 @@ class OffboardControl(Node):
         
         self.attitude_sub = self.create_subscription(
             VehicleAttitude,
-            '/fmu/out/vehicle_attitude',
+            vehicle_attitude_topic,
             self.attitude_callback,
             qos_profile)
         
@@ -86,13 +92,15 @@ class OffboardControl(Node):
             '/arm_message',
             self.arm_message_callback,
             qos_profile)
-
+        
+        trajectorySP = f"/fmu/in/trajectory_setpoint{get_message_name_version(TrajectorySetpoint)}"
+        vehicle_command = f"/fmu/in/vehicle_command{get_message_name_version(VehicleCommand)}"
 
         #Create publishers
         self.publisher_offboard_mode = self.create_publisher(OffboardControlMode, '/fmu/in/offboard_control_mode', qos_profile)
         self.publisher_velocity = self.create_publisher(Twist, '/fmu/in/setpoint_velocity/cmd_vel_unstamped', qos_profile)
-        self.publisher_trajectory = self.create_publisher(TrajectorySetpoint, '/fmu/in/trajectory_setpoint', qos_profile)
-        self.vehicle_command_publisher_ = self.create_publisher(VehicleCommand, "/fmu/in/vehicle_command", 10)
+        self.publisher_trajectory = self.create_publisher(TrajectorySetpoint, trajectorySP, qos_profile)
+        self.vehicle_command_publisher_ = self.create_publisher(VehicleCommand, vehicle_command, 10)
 
         
         #creates callback function for the arm timer
@@ -117,6 +125,7 @@ class OffboardControl(Node):
         self.arm_message = False
         self.failsafe = False
         self.current_state = "IDLE"
+        self.last_state = self.current_state
         self.last_state = self.current_state
 
 
