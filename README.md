@@ -1,200 +1,214 @@
-
-# ROS2_PX4_Offboard_Example
+# PX4 Offboard Control with ROS 2
 
 ## Overview
-This tutorial explains at a basic level how to use ROS2 and PX4 in order to control a simulated UAV's velocity with keyboard controls. The goal is to create a simple example that a complete beginner can follow and understand, even with no ROS2 or PX4 experience.
 
-This repo is a derivative of Jaeyoung Lim's Offboard example
-https://github.com/Jaeyoung-Lim/px4-offboard
+This tutorial demonstrates how to control a simulated UAV’s velocity using keyboard input through ROS 2 and PX4. It is designed to be beginner-friendly, even for those with no prior experience with ROS 2 or PX4.
 
-I've taken his example and added some functionality. 
+This project builds upon the [ARK Electronics ROS2\_PX4\_Offboard\_Example](https://github.com/ARK-Electronics/ROS2_PX4_Offboard_Example), with added updates and patches by me. It streamlines the setup process and updates system compatibility to Ubuntu 24.04 and ROS 2 Jazzy.
 
-## YouTube Tutorial
-We published a walkthrough tutorial on YouTube to demonstrate the example and to help beginners set up their enviornment. The video is helpful, but be sure to always defer to this Readme file for instructions. Some changes have been made since the video was posted, meaning that though it is helpful, it is not 100% accurate.
+## Key Resources
 
-You can watch the video [here](https://www.youtube.com/watch?v=8gKIP0OqHdQ).
+* PX4 ROS2 Offboard Control: [https://docs.px4.io/main/en/ros2/offboard\_control.html](https://docs.px4.io/main/en/ros2/offboard_control.html)
+* Original ARK repo: [https://github.com/ARK-Electronics/ROS2\_PX4\_Offboard\_Example](https://github.com/ARK-Electronics/ROS2_PX4_Offboard_Example)
+* ROS2 Installation: [https://docs.ros.org/en/humble/Installation/Ubuntu-Install-Debs.html](https://docs.ros.org/en/humble/Installation/Ubuntu-Install-Debs.html)
+* Gazebo Harmonic: [https://gazebosim.org/docs/harmonic/install\_ubuntu/](https://gazebosim.org/docs/harmonic/install_ubuntu/)
+* General Gazebo docs: [https://gazebosim.org/docs/latest/getstarted](https://gazebosim.org/docs/latest/getstarted)
 
-### Prerequisites
-* ROS2 Humble
+## Prerequisites
+
+* Ubuntu 24.04 (Noble)
+* ROS 2 Jazzy
+* Gazebo Harmonic
 * PX4 Autopilot
 * Micro XRCE-DDS Agent
-* px4_msgs
-* Ubuntu 22.04
-* Python 3.10
+* Python 3.10+
 
+---
 
-## Setup Steps
+## Step-by-Step Setup
 
-### Install PX4 Autopilot
-To [Install PX4](https://docs.px4.io/main/en/dev_setup/dev_env_linux_ubuntu.html#simulation-and-nuttx-pixhawk-targets) run this code 
-```
-git clone https://github.com/PX4/PX4-Autopilot.git --recursive -b release/1.15
-```
+### 1. Install System Dependencies
 
-Run this script in a bash shell to install everything
-
-```
-bash ./PX4-Autopilot/Tools/setup/ubuntu.sh
+```bash
+sudo apt update && sudo apt upgrade -y
+sudo apt install -y git wget python3-pip python3-jinja2
+sudo apt install -y build-essential cmake ninja-build exiftool
+sudo apt install -y python3-pyserial python3-toml python3-numpy python3-yaml
 ```
 
-You will now need to restart your computer before continuing.
+### 2. Install Python Dependencies
 
+> ⚠️ **Important:** Use `empy==3.3.4` for compatibility with PX4.
 
-### Install ROS2 Humble
-To install ROS2 Humble follow the steps [here](https://docs.ros.org/en/humble/Installation/Ubuntu-Install-Debians.html)
-
-### Install Dependencies
-
-Install Python dependencies as mentioned in the [PX4 Docs](https://docs.px4.io/main/en/ros/ros2_comm.html#install-ros-2) with this code
-
-```
-pip3 install --user -U empy pyros-genmsg setuptools
+```bash
+sudo pip3 install empy==3.3.4 pyros-genmsg --break-system-packages
+pip3 install kconfiglib jsonschema jinja2 --user
 ```
 
-I also found that without these packages installed Gazebo has issues loading
+---
 
-```
-pip3 install kconfiglib
-pip install --user jsonschema
-pip install --user jinja2
+### 3. Install PX4 Autopilot
+
+```bash
+git clone https://github.com/PX4/PX4-Autopilot.git --recursive
+bash PX4-Autopilot/Tools/setup/ubuntu.sh
 ```
 
-### Build Micro DDS
-As mentioned in the [PX4 Docs](https://docs.px4.io/main/en/ros/ros2_comm.html#setup-micro-xrce-dds-agent-client) run this code in order to build MicroDDS on your machine
+After installation, **reboot** your system.
 
+---
+
+### 4. Install ROS 2 Jazzy
+
+Follow the official guide:
+[https://docs.ros.org/en/jazzy/Installation/Ubuntu-Install-Debians.html](https://docs.ros.org/en/jazzy/Installation/Ubuntu-Install-Debians.html)
+
+Add this to your `.bashrc` to automatically source ROS 2:
+
+```bash
+echo 'source /opt/ros/jazzy/setup.bash' >> ~/.bashrc
+source ~/.bashrc
 ```
+
+---
+
+### 5. Install Gazebo Harmonic
+
+Follow the guide here:
+[https://gazebosim.org/docs/harmonic/install\_ubuntu/](https://gazebosim.org/docs/harmonic/install_ubuntu/)
+
+---
+
+### 6. Build Micro XRCE-DDS Agent (PX4 <-> ROS 2 bridge)
+
+```bash
 git clone https://github.com/eProsima/Micro-XRCE-DDS-Agent.git
 cd Micro-XRCE-DDS-Agent
-mkdir build
-cd build
+mkdir build && cd build
 cmake ..
 make
 sudo make install
 sudo ldconfig /usr/local/lib/
 ```
 
-### Setup Workspace
-This git repo is intended to be a ROS2 package that is cloned into a ROS2 workspace.
+---
 
-We're going to create a workspace in our home directory, and then clone in this repo and also the px4_msgs repo. 
+## ROS 2 Workspace Setup
 
-For more information on creating workspaces, see [here](https://docs.ros.org/en/humble/Tutorials/Workspace/Creating-A-Workspace.html)
+### 1. Create Workspace
 
-Run this code to create a workspace in your home directory
-
-```
-mkdir -p ~/ros2_px4_offboard_example_ws/src
-cd ~/ros2_px4_offboard_example_ws/src
+```bash
+mkdir -p ~/sim_env/src
+cd ~/sim_env/src
 ```
 
-*ros2_px4_offboard_example_ws* is just a name I chose for the workspace. You can name it whatever you want. But after we run *colcon build* you might have issues changing your workspace name so choose wisely.
+### 2. Clone Required Repositories
 
-We are now in the src directory of our workspace. This is where ROS2 packages go, and is where we will clone in our two repos.
-
-### Clone in Packages
-We first will need the px4_msgs package. Our ROS2 nodes will rely on the message definitions in this package in order to communicate with PX4. Read [here](https://docs.px4.io/main/en/ros/ros2_comm.html#overview:~:text=ROS%202%20applications,different%20PX4%20releases) for more information.
-
-Be sure you're in the src directory of your workspace and then run this code to clone in the px4_msgs repo
-
-```
+```bash
+# PX4 message definitions
 git clone https://github.com/PX4/px4_msgs.git -b release/1.15
+
+# Offboard control example (fork with patches)
+git clone https://github.com/AADaoud/PX4_Offboard.git
 ```
 
-Once again be sure you are still in the src directory of your workspace. Run this code to clone in our example package
+### 3. Build the Workspace
 
-```
-git clone https://github.com/ARK-Electronics/ROS2_PX4_Offboard_Example.git
-```
+Move out of the `src` directory:
 
-Run this code to clone the repo
-
-
-
-### Building the Workspace
-The two packages in this workspace are px4_msgs and px4_offboard. px4_offboard is a ROS2 package that contains the code for the offboard control node that we will implement. It lives inside the ROS2_PX4_Offboard_Example directory.
-
-Before we build these two packages, we need to source our ROS2 installation. Run this code to do that
-
-```
-source /opt/ros/humble/setup.bash
-```
-
-This will need to be run in every terminal that wants to run ROS2 commands. An easy way to get around this, is to add this command to your .bashrc file. This will run this command every time you open a new terminal window.
-
-To build these two packages, you must be in workspace directory not in src, run this code to change directory from src to one step back i.e. root of your workspace and build the packages
-
-```
+```bash
 cd ..
 colcon build
 ```
-As mentioned in Jaeyoung Lim's [example](https://github.com/Jaeyoung-Lim/px4-offboard/blob/master/doc/ROS2_PX4_Offboard_Tutorial.md) you will get some warnings about setup.py but as long as there are no errors, you should be good to go.
 
+To rebuild only your own package after making changes:
 
-After this runs, we should never need to build px4_msgs again. However, we will need to build px4_offboard every time we make changes to the code. To do this, and save time, we can run
-```
+```bash
 colcon build --packages-select px4_offboard
 ```
 
-If you tried to run our code now, it would not work. This is because we need to source our current workspace. This is always done after a build. To do this, be sure you are in the src directory, and then run this code
+Always source the workspace after a build:
 
-```
+```bash
 source install/setup.bash
 ```
 
-We will run this every time we build. It will also need to be run in every terminal that we want to run ROS2 commands in.
+You may also want to add this to your `.bashrc` for convenience.
 
+---
 
-### Running the Code
-This example has been designed to run from one launch file that will start all the necessary nodes. The launch file will run a python script that uses gnome terminal to open a new terminal window for MicroDDS and Gazebo.
+## Running the Simulation
 
-Run this code to start the example
+Start the full simulation environment:
 
-```
+```bash
 ros2 launch px4_offboard offboard_velocity_control.launch.py
 ```
 
-This will run numerous things. In no particular order, it will run:
+This launch file does the following:
 
-* processes.py in a new window
-   * MicroDDS in a new terminal window
-   * Gazebo will open in a second tab in the same terminal window
-      * Gazebo GUI will open in it's own window
-* control.py in a new window
-   * Sends ROS2 Teleop commands to the /offboard_velocity_cmd topic based on keyboard input
-* RVIZ will open in a new window
-* velocity_control.py runs as it's own node, and is the main node of this example
+* Starts the Micro XRCE-DDS Agent (for ROS 2 ↔ PX4 communication)
+* Opens Gazebo in a new terminal tab
+* Runs the `control.py` node (keyboard teleop)
+* Starts `velocity_control.py` (main control logic)
+* Opens RViz
+* Opens separate terminals for each process using `gnome-terminal`
 
-Once everything is running, you should be able to focus into the control.py terminal window, arm, and takeoff. The controls mimic Mode 2 RC Transmitter controls with WASD being the left joystick and the arrow keys being the right joystick. The controls are as follows:
-* W: Up
-* S: Down
-* A: Yaw Left
-* D: Yaw Right
-* Up Arrow: Pitch Forward
-* Down Arrow: Pitch Backward
-* Left Arrow: Roll Left
-* Right Arrow: Roll Right
-* Space: Arm/Disarm
+> Note: The `processes.py` script manages terminal commands. Modify it if you wish to run custom simulations or tools like QGroundControl.
 
-Pressing *Space* will arm the drone. Wait a moment and it will takeoff and switch into offboard mode. You can now control it using the above keys. If you land the drone, it will disarm and to takeoff again you will need to toggle the arm switch off and back on with the space bar. 
+---
 
-Using the controls, click *W* to send a vertical veloctiy command and take off. Once in the air you can control it as you see fit.
+## Keyboard Controls
 
-## Closing Simulation *IMPORTANT*
-When closing the simulation, it is very tempting to just close the terminal windows. However, this will leave Gazebo running in the background, potentially causing issues when you run Gazebo in the future. To correctly end the Gazebo simulation, go to it's terminal window and click *Ctrl+C*. This will close Gazebo and all of it's child processes. Then, you can close the other terminal windows.
- 
+These mimic Mode 2 transmitter inputs:
 
- ## Explanation of processes.py
- This code runs each set of bash commands in a new tab of a gnome terminal window. It assumes that your PX4 installation is accessible from your root directory, and it is using the gz_x500 simulation. There is no current implementation to change these commands when running the launch file, however you can modify the command string within processes.py to change these values to what you need.
+| Key         | Action         |
+| ----------- | -------------- |
+| `W`         | Ascend         |
+| `S`         | Descend        |
+| `A`         | Yaw Left       |
+| `D`         | Yaw Right      |
+| `↑` (Up)    | Pitch Forward  |
+| `↓` (Down)  | Pitch Backward |
+| `←` (Left)  | Roll Left      |
+| `→` (Right) | Roll Right     |
+| `Space`     | Arm / Disarm   |
 
- If line 17 of processes.py were uncommented
+When armed, the drone will take off and enter offboard mode. Use the controls to navigate. Re-arm with `Space` after landing.
+
+---
+
+## Closing the Simulation
+
+To shut down the simulation cleanly:
+
+1. Go to the **Gazebo** terminal tab.
+2. Press `Ctrl + C` to terminate Gazebo and its subprocesses.
+3. Close other windows as needed.
+
+Failing to close Gazebo properly may leave background processes that interfere with future runs.
+
+---
+
+## Customizing Launch Behavior
+
+The `processes.py` script launches all subprocesses using `gnome-terminal`. You can customize the simulation environment (e.g., model type or start QGroundControl) by modifying the command strings inside that script.
+
+Example (uncomment to launch QGroundControl):
+
+```python
+# "cd ~/QGroundControl && ./QGroundControl.AppImage"
 ```
-17     # "cd ~/QGroundControl && ./QGroundControl.AppImage"
-```
-then QGroundControl would run in a new tab of the terminal window and the QGroundControl GUI would then open up. This is commented out by default because it is not necessary for the simulation to run, but it is useful for debugging, and is a simple example showing how to add another command to the launch file.
 
-## Known Issues
-If the vehicle does not arm when you press Enter, check to ensure the parameter NAV_DLL_ACT is set to 0. You may need to download QGroundControl and disable this parameter if you want to run this demo without needing QGC open.
+---
 
-## Questions
-Join the ARK Electronics Discord [here](https://discord.gg/TDJzJxUMRX) for more help and to stay up to date on our projects.
+## Troubleshooting
 
+* **Vehicle won’t arm:** Make sure the PX4 parameter `NAV_DLL_ACT` is set to `0`. You may need to launch QGroundControl to change this setting.
+* **Gazebo issues loading:** Ensure you've installed `kconfiglib`, `jsonschema`, and `jinja2`.
+
+---
+
+## Contact & Support
+
+This fork was developed by [AADaoud](https://github.com/AADaoud) based on work from [ARK Electronics](https://github.com/ARK-Electronics/ROS2_PX4_Offboard_Example). For questions or discussion, refer to the original [ARK Discord](https://discord.gg/TDJzJxUMRX) or open an issue on this repository for me to look at.
