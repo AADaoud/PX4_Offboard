@@ -36,11 +36,10 @@ __author__ = "Braden Wagstaff"
 __contact__ = "braden@arkelectron.com"
 
 from launch import LaunchDescription
-from launch.actions import ExecuteProcess
+from launch.actions import ExecuteProcess, TimerAction
 from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
 import os
-
 
 def generate_launch_description():
     package_dir = get_package_share_directory('px4_offboard')
@@ -79,5 +78,23 @@ def generate_launch_description():
             executable='rviz2',
             name='rviz2',
             arguments=['-d', [os.path.join(package_dir, 'visualize.rviz')]]
-        )
+        ),
+        # TimerAction(
+        #     period=30.0,
+        #     actions=[
+        #         Node(
+        #             package='ros_gz_bridge',
+        #             executable='parameter_bridge',
+        #             name='camera_bridge',
+        #             arguments=[
+        #                 '/world/default/model/x500_mono_cam_down_0/link/camera_link/sensor/imager/image'
+        #                 '@/camera/image@sensor_msgs/msg/Image@gz.msgs.Image',
+        #                 '/world/default/model/x500_mono_cam_down_0/link/camera_link/sensor/imager/camera_info'
+        #                 '@/camera/camera_info@sensor_msgs/msg/CameraInfo@gz.msgs.CameraInfo'
+        #             ],
+        #             output='screen'
+        #         )
+        #     ]
+        # )
+
     ])
