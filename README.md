@@ -33,7 +33,7 @@ This project builds upon the [ARK Electronics ROS2\_PX4\_Offboard\_Example](http
 sudo apt update && sudo apt upgrade -y
 sudo apt install -y git wget python3-pip python3-jinja2
 sudo apt install -y build-essential cmake ninja-build exiftool
-sudo apt install -y python3-pyserial python3-toml python3-numpy python3-yaml
+sudo apt install -y python3-serial python3-toml python3-numpy python3-yaml
 ```
 
 ### 2. Install Python Dependencies
